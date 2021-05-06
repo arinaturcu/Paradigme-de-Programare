@@ -55,13 +55,21 @@ data Direction = North | South | West | East
     deriving (Eq, Show)
 
 {-
-    *** TODO ***
+    *** DONE ***
     
     Tip de date pentru reprezentarea stării jocului, la un anumit
     moment. Completați-l cu orice informație aveți nevoie pentru
     stocarea stării jocului (hunter, target, obstacole, gateways).
 -}
-data Game = Game deriving (Eq, Ord)
+data Game = Game {
+    hunter           :: Position,
+    targets          :: [Target],
+    obstacles        :: [Position],
+    gateaways        :: [(Position, Position)],
+    terLines     :: Int,
+    terColumns   :: Int
+} deriving (Eq, Ord)
+
 {-
     *** Optional *** 
   
@@ -71,7 +79,7 @@ data Game = Game deriving (Eq, Ord)
 -}
 
 {-
-    *** TODO ***
+    *** DONE ***
 
     Reprezentați starea jocului ca șir de caractere, pentru afișarea
     la consolă.
@@ -87,13 +95,24 @@ data Game = Game deriving (Eq, Ord)
     precum și funcțiile elem, any și intercalate din Data.List.
 -}
 gameAsString :: Game -> String
-gameAsString = undefined
+gameAsString game = init $ intercalate ['\n'] board
+    where
+        board           = [line x | x <- [0 .. terLines game]]
+        line x          = foldl f [] (elementsOnX x)
+        elementsOnX x   = filter (\p -> fst p == x) [(i, j)| i <- [0 .. terLines game - 1], j <- [0 .. terColumns game - 1]]
+        f resString pos = resString ++ [charPos pos]
+        charPos pos
+            | pos == hunter game = '!'
+            | pos `elem` obstacles game = '@'
+            | pos `elem` concatMap (\gate -> [fst gate, snd gate]) (gateaways game) = '#'
+            | pos `elem` map position (targets game) = '*'
+            | otherwise  = ' '
 
 instance Show Game where
     show = gameAsString
 
 {-
-    *** TODO ***
+    *** DONE ***
     
     Primește numărul de linii și numărul de coloane ale tablei de joc.
     Intoarce un obiect de tip Game în care tabla conține spații goale în interior, fiind
@@ -101,10 +120,42 @@ instance Show Game where
     iar Hunterul se găsește pe poziția (1, 1).
 -}
 emptyGame :: Int -> Int -> Game
-emptyGame = undefined
+emptyGame lin col = Game hunt targs obs gates lin col
+    where
+        hunt  = (1, 1) -- hunter
+        targs = [] -- targets
+        obs   = ([(0, y) | y <- [0 .. col - 1]]
+            ++ [(x, y) | x <- [1 .. lin - 2], y <- [0, col - 1]]
+            ++ [(lin - 1, y) | y <- [0 .. col - 1]]) -- obstacles
+        gates = [] -- gateaways
+
+-- functii suplimentare
 
 {-
-    *** TODO ***
+    Verifica daca pozitia este in interiorul jocului si
+    nu are un obstacol
+-}
+isPositionValid :: Position -> Game -> Bool 
+isPositionValid (x, y) game
+    | (x >= terLines game) || (x < 0) || (y >= terColumns game) || (y < 0) = False 
+    | (x, y) `elem` obstacles game = False
+    | otherwise = True
+
+{-
+    Verifica daca pe pozitia data exista ceva
+-}
+isPositionBusy :: Position -> Game -> Bool
+isPositionBusy pos game
+    | pos == hunter game = True
+    | pos `elem` concatMap (\gate -> [fst gate, snd gate]) (gateaways game) = True
+    | pos `elem` obstacles game = True
+    | pos `elem` map position (targets game) = True -- map este folosita ca sa optin o lista de pozitii ale target-urilor
+    | otherwise  = False -- pozitie goala
+    
+-- end of functii suplimentare
+
+{-
+    *** DONE ***
 
     Primește o poziție și un joc și întoarce un nou joc, cu Hunter-ul pus
     pe poziția specificată.
@@ -113,10 +164,12 @@ emptyGame = undefined
     același joc.
 -}
 addHunter :: Position -> Game -> Game
-addHunter  = undefined
+addHunter p game
+    | not (isPositionValid p game) || isPositionBusy p game = game
+    | otherwise = Game p (targets game) (obstacles game) (gateaways game) (terLines game) (terColumns game)
 
 {-
-    *** TODO ***
+    *** DONE ***
 
     Primește un comportament, o poziție și un joc și întoarce un nou joc, în care a fost
     adăugat Target-ul descris de comportament și poziție.
@@ -124,28 +177,35 @@ addHunter  = undefined
     Parametrul Position reprezintă poziția de pe hartă la care va fi adăugat Target-ul.
 -}
 addTarget :: Behavior -> Position -> Game -> Game
-addTarget  = undefined
+addTarget beh p game
+    | not (isPositionValid p game) = game
+    | otherwise = Game (hunter game) ((Target p beh) : targets game) (obstacles game) (gateaways game) (terLines game) (terColumns game)
 
 {-
-    *** TODO ***
+    *** DONE ***
 
     Primește o pereche de poziții și un joc și întoarce un nou joc, în care au fost adăugate
     cele două gateway-uri interconectate.
     Parametrul (Position, Position) reprezintă pozițiile de pe hartă la care vor fi adăugate 
     cele două gateway-uri interconectate printr-un canal bidirecțional.
 -}
+
 addGateway :: (Position, Position) -> Game -> Game
-addGateway  = undefined
+addGateway g@(src, dest) game 
+    | not (isPositionValid src game) || not (isPositionValid dest game) = game
+    | otherwise = Game (hunter game) (targets game) (obstacles game) (g : gateaways game) (terLines game) (terColumns game)
 
 {-
-    *** TODO ***
+    *** DONE ***
 
     Primește o poziție și un joc și întoarce un nou joc, în care a fost adăugat un obstacol
     la poziția specificată.
     Parametrul Position reprezintă poziția de pe hartă la care va fi adăugat obstacolul.
 -}
 addObstacle :: Position -> Game -> Game
-addObstacle  = undefined
+addObstacle p game
+    | not (isPositionValid p game) = game
+    | otherwise = Game (hunter game) (targets game) (p : obstacles game) (gateaways game) (terLines game) (terColumns game)
 
 {-
     *** TODO ***
