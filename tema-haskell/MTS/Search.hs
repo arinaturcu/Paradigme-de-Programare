@@ -10,7 +10,7 @@ import Prelude
 import qualified Data.Set as S
 
 {-
-    *** TODO ***
+    *** DONE ***
     Tipul unei nod utilizat în procesul de căutare. Recomandăm reținerea unor
     informații legate de:
     * stare;
@@ -21,44 +21,53 @@ import qualified Data.Set as S
     * copiii, ce vor desemna stările învecinate;
 -}
 
-data Node s a = UndefinedNode
+-- s = Game, a = Direction
+
+data Node s a = Node {
+    state     :: s,
+    action    :: Maybe a,
+    parent    :: Maybe (Node s a),
+    depth     :: Int,
+    heuristic :: Float,
+    children  :: [Node s a]
+}
 
 {-
-    *** TODO ***
+    *** DONE ***
     Instanțiați Eq și Ord pe baza stării.
 -}
 
 instance Eq s => Eq (Node s a) where
-    _ == _ = undefined
+    node1 == node2 = state node1 == state node2
 
 instance Ord s => Ord (Node s a) where
-    _ <= _ = undefined
+    node1 <= node2 = state node1 <= state node2
 
 {-
-    *** TODO ***
+    *** DONE ***
     Gettere folosite pentru accesul la câmpurile nodului
 -}
 
 nodeState :: Node s a -> s
-nodeState = undefined
+nodeState  = state
 
 nodeParent :: Node s a -> Maybe (Node s a)
-nodeParent = undefined
+nodeParent = parent
 
 nodeDepth :: Node s a -> Int
-nodeDepth = undefined
+nodeDepth = depth
 
 nodeChildren :: Node s a -> [Node s a]
-nodeChildren = undefined
+nodeChildren = children
 
 nodeHeuristic :: Node s a -> Float
-nodeHeuristic = undefined
+nodeHeuristic = heuristic
 
 nodeAction :: Node s a -> Maybe a
-nodeAction = undefined
+nodeAction = action
 
 {-
-    *** TODO ***
+    *** DONE ***
     Generarea întregului spațiu al stărilor.
     Primește starea inițială și creează nodul corespunzător acestei stări,
     având drept copii nodurile succesorilor stării curente, și așa mai
@@ -66,7 +75,13 @@ nodeAction = undefined
 -}
 
 createStateSpace :: (ProblemState s a, Eq s) => s -> Node s a
-createStateSpace initialState = undefined -- initialNode
+createStateSpace initialState = root
+    where
+        root = Node initialState Nothing Nothing 0 (h initialState) (allChildren root)
+        allChildren parent = 
+            [node | (dir, succState) <- successors (nodeState parent), 
+                    let tempNode = Node succState (Just dir) (Just parent) (nodeDepth parent + 1) (h succState) [],
+                    let node = tempNode { children = allChildren tempNode }]
 
 {-
     Funcție ce primește o coadă de priorități și întoarce o pereche
@@ -75,23 +90,23 @@ createStateSpace initialState = undefined -- initialNode
     Hint: O puteți folosi pentru a extrage și a șterge un nod din frontieră.
 -}
 
-deleteFindMin :: (Ord k, Ord p) => (PQ.PSQ k p) -> (k, (PQ.PSQ k p))
+deleteFindMin :: (Ord k, Ord p) => PQ.PSQ k p -> (k, PQ.PSQ k p)
 deleteFindMin pq = (minK, pq')
     where minK = PQ.key $ fromJust $ PQ.findMin pq
           pq' = PQ.deleteMin pq
 
 {-
-    *** TODO ***
+    *** DONE ***
     Primește nodul curent și mulțimea stărilor vizitate și întoarce
     o listă cu nodurile succesor nevizitate, care ar putea fi introduse
     în frontieră.
 -}
 
-suitableSuccs :: (ProblemState s a, Ord s) => Node s a -> (S.Set s) -> [Node s a]
-suitableSuccs node visited = undefined
+suitableSuccs :: (ProblemState s a, Ord s) => Node s a -> S.Set s -> [Node s a]
+suitableSuccs node visited = [child | child <- nodeChildren node, nodeState child `notElem` visited]
 
 {-
-    *** TODO ***
+    *** DONE ***
     Primește o frontieră (o coadă de priorități) și un nod ce trebuie inserat în aceasta,
     întorcând o nouă frontieră.
     ATENȚIE: Dacă la introducerea unui nod există deja în frontieră un alt nod cu aceeași
@@ -103,18 +118,21 @@ suitableSuccs node visited = undefined
     2. Costul se calculează ca suma dintre adâncime și euristică.
 -}
 
-insertSucc :: (ProblemState s a, Ord s) => (PQ.PSQ (Node s a) Float) -> Node s a -> PQ.PSQ (Node s a) Float
-insertSucc frontier node = undefined -- newFrontier
+insertSucc :: (ProblemState s a, Ord s) => PQ.PSQ (Node s a) Float -> Node s a -> PQ.PSQ (Node s a) Float
+insertSucc frontier node = PQ.insertWith func node newHeuristic frontier
+    where
+        func h1 h2 = if h1 > h2 then h2 else h1
+        newHeuristic = h (nodeState node) + fromIntegral (nodeDepth node)
 
 {-
-    *** TODO ***
+    *** DONE ***
     Primește nodul curent, frontiera și mulțimea stărilor vizitate, întorcând noua
     frontieră (coadă de priorități) în care au fost adăugate nodurile succesor validate
     de suitableSuccs.
 -}
 
-insertSuccs :: (ProblemState s a, Ord s) => (Node s a) -> (PQ.PSQ (Node s a) Float) -> (S.Set s) -> (PQ.PSQ (Node s a) Float)
-insertSuccs node frontier visited = undefined --newFrontier
+insertSuccs :: (ProblemState s a, Ord s) => Node s a -> PQ.PSQ (Node s a) Float -> S.Set s -> PQ.PSQ (Node s a) Float
+insertSuccs node frontier visited = foldl insertSucc frontier (suitableSuccs node visited)
 
 {-
     *** TODO ***
@@ -127,7 +145,7 @@ insertSuccs node frontier visited = undefined --newFrontier
         - se introduc succesorii în frontieră
 -}
 
-astar' :: (ProblemState s a, Ord s) => (S.Set s) -> (PQ.PSQ (Node s a) Float) -> Node s a
+astar' :: (ProblemState s a, Ord s) => S.Set s -> PQ.PSQ (Node s a) Float -> Node s a
 astar' visited frontier = undefined -- goalNode
 
 {-

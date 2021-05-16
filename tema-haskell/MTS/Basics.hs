@@ -61,13 +61,14 @@ data Direction = North | South | West | East
     moment. Completați-l cu orice informație aveți nevoie pentru
     stocarea stării jocului (hunter, target, obstacole, gateways).
 -}
+
 data Game = Game {
     hunter           :: Position,
     targets          :: [Target],
     obstacles        :: [Position],
-    gateaways        :: [(Position, Position)],
-    terLines     :: Int,
-    terColumns   :: Int
+    gateways         :: [(Position, Position)],
+    terLines         :: Int,
+    terColumns       :: Int
 } deriving (Eq, Ord)
 
 {-
@@ -104,8 +105,8 @@ gameAsString game = init $ intercalate ['\n'] board
         charPos pos
             | pos == hunter game = '!'
             | pos `elem` obstacles game = '@'
-            | pos `elem` concatMap (\gate -> [fst gate, snd gate]) (gateaways game) = '#'
             | pos `elem` map position (targets game) = '*'
+            | pos `elem` concatMap (\gate -> [fst gate, snd gate]) (gateways game) = '#'
             | otherwise  = ' '
 
 instance Show Game where
@@ -124,10 +125,10 @@ emptyGame lin col = Game hunt targs obs gates lin col
     where
         hunt  = (1, 1) -- hunter
         targs = [] -- targets
-        obs   = ([(0, y) | y <- [0 .. col - 1]]
+        obs   = [(0, y) | y <- [0 .. col - 1]]
             ++ [(x, y) | x <- [1 .. lin - 2], y <- [0, col - 1]]
-            ++ [(lin - 1, y) | y <- [0 .. col - 1]]) -- obstacles
-        gates = [] -- gateaways
+            ++ [(lin - 1, y) | y <- [0 .. col - 1]] -- obstacles
+        gates = [] -- gateways
 
 -- functii suplimentare
 
@@ -147,9 +148,9 @@ isPositionValid (x, y) game
 isPositionBusy :: Position -> Game -> Bool
 isPositionBusy pos game
     | pos == hunter game = True
-    | pos `elem` concatMap (\gate -> [fst gate, snd gate]) (gateaways game) = True
-    | pos `elem` obstacles game = True
     | pos `elem` map position (targets game) = True -- map este folosita ca sa optin o lista de pozitii ale target-urilor
+    | pos `elem` concatMap (\gate -> [fst gate, snd gate]) (gateways game) = True
+    | pos `elem` obstacles game = True
     | otherwise  = False -- pozitie goala
     
 -- end of functii suplimentare
@@ -166,7 +167,7 @@ isPositionBusy pos game
 addHunter :: Position -> Game -> Game
 addHunter p game
     | not (isPositionValid p game) || isPositionBusy p game = game
-    | otherwise = Game p (targets game) (obstacles game) (gateaways game) (terLines game) (terColumns game)
+    | otherwise = game { hunter = p }
 
 {-
     *** DONE ***
@@ -179,10 +180,10 @@ addHunter p game
 addTarget :: Behavior -> Position -> Game -> Game
 addTarget beh p game
     | not (isPositionValid p game) = game
-    | otherwise = Game (hunter game) ((Target p beh) : targets game) (obstacles game) (gateaways game) (terLines game) (terColumns game)
+    | otherwise = game { targets = Target p beh : targets game }
 
 {-
-    *** DONE ***
+    *** DONE *** 
 
     Primește o pereche de poziții și un joc și întoarce un nou joc, în care au fost adăugate
     cele două gateway-uri interconectate.
@@ -191,9 +192,9 @@ addTarget beh p game
 -}
 
 addGateway :: (Position, Position) -> Game -> Game
-addGateway g@(src, dest) game 
+addGateway g@(src, dest) game
     | not (isPositionValid src game) || not (isPositionValid dest game) = game
-    | otherwise = Game (hunter game) (targets game) (obstacles game) (g : gateaways game) (terLines game) (terColumns game)
+    | otherwise = game { gateways = g : gateways game }
 
 {-
     *** DONE ***
@@ -205,10 +206,10 @@ addGateway g@(src, dest) game
 addObstacle :: Position -> Game -> Game
 addObstacle p game
     | not (isPositionValid p game) = game
-    | otherwise = Game (hunter game) (targets game) (p : obstacles game) (gateaways game) (terLines game) (terColumns game)
+    | otherwise = Game (hunter game) (targets game) (p : obstacles game) (gateways game) (terLines game) (terColumns game)
 
 {-
-    *** TODO ***
+    *** DONE ***
     
     Primește o poziție destinație înspre care vrea să se deplaseze o entitate (Hunter sau Target)
     și verifică daca deplasarea este posibilă, întorcând noua poziție, luând în considerare
@@ -220,10 +221,20 @@ addObstacle p game
     Parametrul Position reprezintă poziția destinație.
 -}
 attemptMove :: Position -> Game -> Maybe Position
-attemptMove = undefined
+attemptMove p game
+    | any (\g -> (fst g == p) || (snd g == p)) (gateways game) = findPair p (gateways game) -- gateway
+    | not(isPositionValid p game) = Nothing -- obstacol
+    | otherwise = Just p -- spatiu gol
+
+findPair :: Eq t => t -> [(t, t)] -> Maybe t
+findPair pos list 
+    | null list = Nothing 
+    | pos == fst (head list) = Just $ snd (head list)
+    | pos == snd (head list) = Just $ fst (head list)
+    | otherwise = findPair pos (tail list)
 
 {-
-    *** TODO ***
+    *** DONE ***
 
     Comportamentul unui Target de a se deplasa cu o casuță înspre est. 
     Miscarea se poate face doar daca poziția este validă (se află pe tabla de
@@ -237,11 +248,36 @@ attemptMove = undefined
     goNorth, goSouth) sunt foarte similare, încercați să implementați o funcție
     mai generală, pe baza căreia să le definiți apoi pe acestea patru.
 -}
+
+fromJust :: Maybe Position -> Position
+fromJust (Just pos) = pos
+fromJust Nothing = error "error: fromJust called on Nothing"
+
+isJust :: Maybe a -> Bool 
+isJust (Just _) = True
+isJust Nothing = False
+
+isNothing :: Maybe a -> Bool
+isNothing Nothing = True
+isNothing _ = False
+
+go :: Int -> Int -> Position -> Behavior -> Game -> Target
+go x y p beh game
+    | isJust nextMove && any (\g -> (fst g == nextP) || (snd g == nextP)) (gateways game) = Target nextP beh
+    | isJust nextMove = Target nextP beh
+    | isNothing nextMove && any (\g -> (fst g == nextP) || (snd g == nextP)) (gateways game) = Target (fromJust (findPair nextP (gateways game))) beh
+    | otherwise = Target p beh 
+    where
+        nextMove = attemptMove (fst p + x, snd p + y) game
+        nextP
+            | isJust nextMove = fromJust nextMove
+            | otherwise = p
+
 goEast :: Behavior
-goEast = undefined
+goEast p = go 0 1 p goEast
 
 {-
-    *** TODO ***
+    *** DONE ***
 
     Comportamentul unui Target de a se deplasa cu o casuță înspre vest. 
     Miscarea se poate face doar daca poziția este validă (se află pe tabla de
@@ -249,10 +285,10 @@ goEast = undefined
     pe loc.
 -}
 goWest :: Behavior
-goWest = undefined
+goWest p = go 0 (-1) p goWest
 
 {-
-    *** TODO ***
+    *** DONE ***
 
     Comportamentul unui Target de a se deplasa cu o casuță înspre nord. 
     Miscarea se poate face doar daca poziția este validă (se află pe tabla de
@@ -260,10 +296,10 @@ goWest = undefined
     pe loc.
 -}
 goNorth :: Behavior
-goNorth = undefined
+goNorth p = go (-1) 0 p goNorth
 
 {-
-    *** TODO ***
+    *** DONE ***
 
     Comportamentul unui Target de a se deplasa cu o casuță înspre sud. 
     Miscarea se poate face doar daca poziția este validă (se află pe tabla de
@@ -271,10 +307,10 @@ goNorth = undefined
     pe loc.
 -}
 goSouth :: Behavior
-goSouth = undefined
+goSouth p = go 1 0 p goSouth
 
 {-
-    *** TODO ***
+    *** DONE ***
 
     Comportamentul unui Target de a-și oscila mișcarea, când înspre nord, când înspre sud. 
     Mișcarea se poate face doar dacă poziția este validă (se află pe tablă de
@@ -289,20 +325,28 @@ goSouth = undefined
     1 pentru sud, -1 pentru nord).
 -}
 bounce :: Int -> Behavior
-bounce = undefined
+bounce dir = bounceBehavior
+    where
+        bounceBehavior pos game
+            | not (isPositionValid (nextP pos dir) game) = Target (nextP pos (- dir)) (bounce (- dir))
+            | otherwise = go dir 0 pos (bounce dir) game
+        nextP pos d = (fst pos + d, snd pos)
 
 {-
-    *** TODO ***
+    *** DONE ***
     Funcție care mută toate Target-urile din Game-ul dat o poziție, în functie
     de behavior-ul fiecăreia și întoarce noul Game în care pozițiile Target-urilor
     sunt actualizate.
     
 -}
 moveTargets :: Game -> Game
-moveTargets = undefined
+moveTargets game = game {targets = newTargets}
+    where
+        newTargets = map modif (targets game)
+        modif targ = behavior targ (position targ) game
 
 {-
-    *** TODO ***
+    *** DONE ***
 
     Verifică dacă Targetul va fi eliminat de Hunter.
     Un Target este eliminat de Hunter daca se află pe o poziție adiacentă
@@ -312,11 +356,11 @@ moveTargets = undefined
     Parametrul Target reprezintă Targetul pentru care se face verificarea.
 -}
 isTargetKilled :: Position -> Target -> Bool
-isTargetKilled = undefined
+isTargetKilled (x, y) (Target (i, j) _) = (abs (x - i) == 1 && y == j) || (abs (y - j) == 1 && x == i) 
 
 
 {-
-    *** TODO ***
+    *** DONE ***
 
     Avansează starea jocului curent, rezultând starea următoare a jocului.
     Parametrul Direction reprezintă direcția în care se va deplasa Hunter-ul.
@@ -334,16 +378,38 @@ isTargetKilled = undefined
     Dubla verificare a anihilării Target-urilor, în pașii 2 și 4, îi oferă Hunter-ului
     un avantaj în prinderea lor.
 -}
+
 advanceGameState :: Direction -> Bool -> Game -> Game
-advanceGameState = undefined
+advanceGameState direction kill game = game { hunter = newHunter, targets = newTargets}
+    where 
+        newHunter
+            | isJust (nextPos direction) = fromJust (nextPos direction)
+            | otherwise = hunter game
+        nextPos dir
+            | dir == East  = attemptMove (fst hpos, snd hpos + 1) game
+            | dir == West  = attemptMove (fst hpos, snd hpos - 1) game
+            | dir == North = attemptMove (fst hpos - 1, snd hpos) game
+            | otherwise    = attemptMove (fst hpos + 1, snd hpos) game
+        hpos = hunter game
+        afterKillTargets targs
+            | kill = filter (not . isTargetKilled newHunter) targs
+            | otherwise    = targs
+        afterMoveTargets
+            | kill = targets (moveTargets game { targets = afterKillTargets (targets game)})
+            | otherwise    = targets game
+        newTargets
+            | kill = afterKillTargets afterMoveTargets
+            | otherwise    = targets game
+        
 
 {-
-    ***  TODO ***
+    ***  DONE ***
 
     Verifică dacă mai există Target-uri pe table de joc.
 -}
 areTargetsLeft :: Game -> Bool
-areTargetsLeft = undefined
+areTargetsLeft game = not $ null $ targets game; 
+
 
 {-
     *** BONUS TODO ***
@@ -361,28 +427,33 @@ circle = undefined
 
 instance ProblemState Game Direction where
     {-
-        *** TODO ***
+        *** DONE ***
         
         Generează succesorii stării curente a jocului.
         Utilizați advanceGameState, cu parametrul Bool ales corespunzător.
     -}
-    successors = undefined
+    successors game = concatMap (\d -> [(d, advanceGameState d False game)]) [East, West, North, South]
 
     {-
-        *** TODO ***
+        *** DONE ***
         
         Verifică dacă starea curentă este un în care Hunter-ul poate anihila
         un Target. Puteți alege Target-ul cum doriți, în prezența mai multora.
     -}
-    isGoal  = undefined
+    isGoal game = any (isTargetKilled (hunter game)) (targets game)
 
     {-
-        *** TODO ***
+        *** TODO??? ***
         
         Euristica euclidiană (vezi hEuclidian mai jos) până la Target-ul ales
         de isGoal.
+        (minimul dintre toate euristicile)
     -}
-    h = undefined
+    h game = foldl1 (\m t -> if t < m then t else m) euclidians -- cauta minimul
+        where
+            -- calculeaza euclidianul pentru fiecare target
+            euclidians = map (\t -> hEuclidean (position t) (hunter game)) (targets game)
+            
 
 {-
      ** NU MODIFICATI **
