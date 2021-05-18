@@ -443,7 +443,7 @@ instance ProblemState Game Direction where
     isGoal game = any (isTargetKilled (hunter game)) (targets game)
 
     {-
-        *** TODO??? ***
+        *** DONE ***
         
         Euristica euclidiană (vezi hEuclidian mai jos) până la Target-ul ales
         de isGoal.

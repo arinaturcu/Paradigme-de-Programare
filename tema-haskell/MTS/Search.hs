@@ -78,9 +78,9 @@ createStateSpace :: (ProblemState s a, Eq s) => s -> Node s a
 createStateSpace initialState = root
     where
         root = Node initialState Nothing Nothing 0 (h initialState) (allChildren root)
-        allChildren parent = 
-            [node | (dir, succState) <- successors (nodeState parent), 
-                    let tempNode = Node succState (Just dir) (Just parent) (nodeDepth parent + 1) (h succState) [],
+        allChildren par = 
+            [node | (dir, succState) <- successors (nodeState par), 
+                    let tempNode = Node succState (Just dir) (Just par) (nodeDepth par + 1) (h succState) [],
                     let node = tempNode { children = allChildren tempNode }]
 
 {-
@@ -135,7 +135,7 @@ insertSuccs :: (ProblemState s a, Ord s) => Node s a -> PQ.PSQ (Node s a) Float 
 insertSuccs node frontier visited = foldl insertSucc frontier (suitableSuccs node visited)
 
 {-
-    *** TODO ***
+    *** DONE ***
     Funcție helper care implementează A-star.
     Primește o mulțime de noduri vizitate și o coadă de priorități (aka frontiera) și
     întoarce starea finală.
@@ -146,10 +146,17 @@ insertSuccs node frontier visited = foldl insertSucc frontier (suitableSuccs nod
 -}
 
 astar' :: (ProblemState s a, Ord s) => S.Set s -> PQ.PSQ (Node s a) Float -> Node s a
-astar' visited frontier = undefined -- goalNode
+astar' visited frontier 
+    | isGoal (nodeState bestNode) = bestNode 
+    | otherwise = astar' newVisited newFrontier
+    where
+        (bestNode, tmpFrontier) = deleteFindMin frontier
+        newVisited  = S.insert (nodeState bestNode) visited
+        newFrontier = insertSuccs bestNode tmpFrontier newVisited
+
 
 {-
-    *** TODO ***
+    *** DONE ***
   
     Primește starea inițială și întoarce starea finală pentru o singură aplicare
     a algoritmului.
@@ -157,7 +164,9 @@ astar' visited frontier = undefined -- goalNode
 -}
 
 astar :: (ProblemState s a, Ord s) => Node s a -> Node s a
-astar initialNode = undefined -- goalNode
+astar initialNode = astar' S.empty (PQ.insert initialNode heur PQ.empty)
+    where heur = h (nodeState initialNode) + fromIntegral (nodeDepth initialNode)
+
 
 {-
     *** TODO ***
@@ -169,4 +178,13 @@ astar initialNode = undefined -- goalNode
 -}
 
 extractPath :: Node s a -> [(a, s)]
-extractPath goalNode = undefined
+extractPath goalNode = map (\n -> (fromJust (nodeAction n), nodeState n)) (nodes [goalNode] goalNode)
+    where
+        nodes l n
+            | isNothing (nodeParent n) = tail l
+            | otherwise = nodes (fromJust (nodeParent n) : l) (fromJust (nodeParent n))
+
+-- extractPath :: Node s a -> [(a, s)]
+-- extractPath goalNode = map (\n -> (fromJust (nodeAction n), nodeState n)) (nodes goalNode)
+--     where
+--         nodes goalNode = [n | ] ++ [goalNode]
