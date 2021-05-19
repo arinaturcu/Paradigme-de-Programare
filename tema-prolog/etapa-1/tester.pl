@@ -4,7 +4,7 @@
 %% ----------------------------------------
 %% Tester
 
-testtimelimit(10). % in seconds
+testtimelimit(5). % in seconds
 
 test_points(show). % uncomment to show points in non-vmchecker mode.
 %test_points(hide) :- test_mode(vmchecker); \+ test_points(show).

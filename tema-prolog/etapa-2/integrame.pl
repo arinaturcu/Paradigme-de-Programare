@@ -1,6 +1,6 @@
 :- ensure_loaded('checker.pl').
 
-test_mode(detailed).
+%test_mode(detailed).
 
 % Considerăm următoarele reprezentări:
 %
@@ -14,17 +14,17 @@ test_mode(detailed).
 %     x - dacă celula este neagră (nu poate fi completată cu litere)
 %     o literă, dacă celula este completată cu o literă
 %     o listă de întrebări, reprezentate ca tupluri (Text, Dir, ID), cu
-%       Text - un srting, textul întrebării
+%       Text - un literal, textul întrebării
 %       Dir - una dintre valorile j sau d, indicând direcția întrebării
 %       ID - un identificator numeric al întrebării
-% Vocab este o listă de stringuri reprezentând cuvinte disponibile
+% Vocab este o listă de literali reprezentând cuvinte disponibile
 % pentru a rezolva întrebarea.
 %
 % În ieșirea predicatului intrebări, o întrebare este reprezentată ca
 % ((R, C), Text, Dir, ID), unde
 % R este rândul căsuței cu întrebarea (0-based)
 % C este coloana căsuței cu întrebarea (0-based)
-% Text este textul întrebării (un string)
+% Text este textul întrebării (un literal)
 % Dir este j sau d, reprezentând direcția în care trebuie să fie plasat
 % răspunsul (jos sau dreapta)
 % ID este un identificator numeric al întrebării.
@@ -48,17 +48,15 @@ test_mode(detailed).
 % ((R, C), Text, Dir, ID), fiecare tuplu corespunzând unei întrebări din
 % integramă (rândul, coloana, textul întrebării, direcția (j/d),
 % identificatorul).
+%
 % BONUS: intrebari are o singură soluție (o singură listă) pentru o
 % anumită integramă.
-
-% integMember( ((R, C), Text, Dir, ID), [ ((R, C), L) | _ ]) :- member((Text, Dir, ID), L).
-% integMember(Que, [_|T]) :- integMember(Que, T).
-
-% OBS: urmatoarele 4 linii de cod au fost create in 5 ore de munca
+intrebariHelper(_, _) :- false.
 intrebariHelper([], []) :- true.
 intrebariHelper([ ((R, C), [(Text, Dir, ID) | T1]) | T3 ], [((R, C), Text, Dir, ID) | T2]) :- intrebariHelper([((R, C), T1) | T3], T2).
 intrebariHelper([ (_, _) | T3], L) :- intrebariHelper(T3, L).
 
+intrebari(_, _) :- false.
 intrebari(integ(_, _, List, _), L) :- intrebariHelper(List, L), !.
 
 % id_intrebare/2
@@ -67,6 +65,7 @@ intrebari(integ(_, _, List, _), L) :- intrebariHelper(List, L), !.
 % este un text iar Q_ID este un identificator care corespund aceleași
 % întrebări.
 id_intrebare(_, _, _) :- false.
+id_intrebare(integ(H, W, List, Vocab), Q_Text, Q_ID) :- intrebari(integ(H, W, List, Vocab), L), member((_, Q_Text, _, Q_ID), L), !.
 
 % completare/3
 % completare(+Integ, +Sol, -Integrama)
@@ -74,31 +73,62 @@ id_intrebare(_, _, _) :- false.
 % pornind de la Integ, în care au fost completate celule conform cu
 % soluția Sol.
 % Soluția este reprezentată ca o listă de perechi (Întrebare, Răspuns),
-% unde Întrebarea este textul unei întrebări, iar Răspuns este un cuvând
-% de completat; ambele sunt stringuri.
+% unde Întrebarea este textul unei întrebări, iar Răspuns este un cuvânt
+% de completat; ambele sunt atomi (literali).
 % De exemplu, o soluție parțială pentru integrama 0 poate fi:
 % [('Din care plouă', 'NOR'), ('Al doilea număr', 'DOI')]
+%
 % BONUS: lungime_spatiu are o singură soluție pentru o anumită
 % întrebare.
 % Puteți testa manual predicatul cu o interogare de forma:
 % integrama(0, W), solutie(0, Sol), completare(W, Sol, W2),
 %   print_integrama(W2).
+get_intrebare(integ(H, W, List, Vocab), Text, ((R, C), Text, Dir, ID)) :- intrebari(integ(H, W, List, Vocab), L), member(((R, C), Text, Dir, ID), L), !.
+
+transformInIntegramaCel([], []).
+transformInIntegramaCel([(_, _, []) | Tail], L ) :- transformInIntegramaCel(Tail, L).
+transformInIntegramaCel([((R, C), d, [FirstChar | Rest]) | T1], [((R, NewC), FirstChar) | T2]) :- NewC is C + 1, transformInIntegramaCel([((R, NewC), d, Rest) | T1], T2), !.
+transformInIntegramaCel([((R, C), j, [FirstChar | Rest]) | T1], [((NewR, C), FirstChar) | T2]) :- NewR is R + 1, transformInIntegramaCel([((NewR, C), j, Rest) | T1], T2), !.
+
+detailedSol(_, [], []).
+detailedSol(Integ, [(Text, Ans) | T1], [((R, C), Dir, AnsChars) | T2]) :- atom_chars(Ans, AnsChars), get_intrebare(Integ, Text, ((R, C), Text, Dir, _)), detailedSol(Integ, T1, T2), !.
+
 completare(_, _, _) :- false.
+completare(integ(H, W, List, Vocab), Sol, integ(H, W, ComplList, Vocab)) :- 
+    detailedSol(integ(H, W, List, Vocab), Sol, DetailedSol),
+    transformInIntegramaCel(DetailedSol, CellsToAdd),
+    append(List, CellsToAdd, TmpList),
+    sort(TmpList, ComplList), !.
 
 % lungime_spatiu/3
 % lungime_spatiu(integ(+H, +W, +Lista, +Vocab), +Intrebare, -Lungime)
+% pentru Bonus:
+% lungime_spatiu(integ(+H, +W, +Lista, +Vocab), ?Intrebare, ?Lungime)
+%
 % Returnează lungimea spațiului asociat întrebării date.
 % Întrebarea este indicată prin textul ei. De exemplu:
 % lungime_spatiu pentru integrama 0 și întrebarea 'Al doilea număr'
 % trebuie să lege Lungime la 3.
+%
 % BONUS: lungime_spatiu are o singură soluție pentru o anumită
 % întrebare.
 % Puteți testa manual predicatul cu o interogare de forma:
 % integrama(0, W), id_intrebare(W, Text, 3), lungime_spatiu(W, Text, X).
+% isValueAt(List, (R, C), Val) :- member(((R, C), Val), List), !.
+
+% findLength(List, (R, C), d, L).
+% findLength(List, (R, C), j, L).
+
 lungime_spatiu(_, _, _) :- false.
+% lungime_spatiu(integ(H, W, List, Vocab), Text, Lungime) :- 
+%     get_intrebare(integ(H, W, List, Vocab), Text, ((R, C), Text, Dir, ID)), 
+%     findLength(List, (R, C), Dir, Lungime).
 
 % intersectie/5
 % intersectie(integ(+H, +W, +Lista, +Voc), +I1, -Poz1, +I2, -Poz2)
+% pentru Bonus:
+% intersectie(integ(+H, +W, +Lista, +Voc), ?I1, ?Poz1, ?I2, ?Poz2)
+%
 % Pentru o integramă și două întrebări date prin textul lor (I1 și I2),
 % al căror răspunsuri se intersectează, întoarce în Poz1 indicele din
 % răspunsul la I1 la care este intersecția, și în Poz2 indicele din
@@ -124,7 +154,7 @@ intersectie(_, _, _, _, _) :- false.
 % listă de cuvinte sunt din Vocabular și au lungimea corectă pentru a fi
 % răspuns la întrebare. Solutii conține câte o pereche pentru fiecare
 % întrebare din integramă.
-% Cuvintele sunt reprezentate ca liste de stringuri, fiecare string
+% Cuvintele sunt reprezentate ca liste de atomi, fiecare atom
 % având lungime 1 (o singură literă).
 % De exemplu, pentru integrama 0, Solutii conține 6 perechi, două dintre
 % ele fiind:
@@ -136,7 +166,10 @@ solutii_posibile(_, _) :- false.
 % rezolvare/2
 % rezolvare(+Integ, -Solutie)
 % Rezolvare produce în Solutie soluția integramei Integ. Soluția este
-% reprezentată ca o listă de perechi de stringuri, fiecare pereche
-% conținând textul unei întrebări și cuvântul (ca string) care este
+% reprezentată ca o listă de perechi de literali, fiecare pereche
+% conținând textul unei întrebări și cuvântul (ca literal) care este
 % răspunsul la întrebare.
+%
+% BONUS: rezolvare nu oferă soluții duplicate - numărul de soluții ale 
+% predicatului este chiar numărul de completări posibile ale integramei.
 rezolvare(_, _) :- false.

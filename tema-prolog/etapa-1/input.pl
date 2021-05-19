@@ -250,11 +250,23 @@ stress_test([
 
 stress_test2(Dict) :- words(11, Dict).
 
-words(0, []).
+words(0, []) :- !.
 words(Len, Dict) :-
+    Len > 0,
     findall(Word, (word(Len, WL), string_chars(Word, WL)), DictLen),
     L is Len - 1, words(L, DictL),
     append(DictLen, DictL, Dict).
-word(0, []).
-word(Len, [Char|Word]) :- L is Len - 1, L >= 0, word(L, Word),
+word(0, []) :- !.
+word(Len, [Char|Word]) :- Len > 0, L is Len - 1, L >= 0, word(L, Word),
     string_chars("ABCDEF", Letters), member(Char, Letters).
+
+
+letters(['A', 'B', 'C', 'D', 'E', 'F']).
+words2(0, [[]]) :- !.
+words2(Len, Dict) :-
+    Len > 0, L is Len - 1,
+    words2(L, Words),
+    letters(Letters),
+    findall([Let|W], (member(Let, Letters), member(W, Words)), Dict).
+words2a(Len, Dict) :- words2(Len, Lists),
+    findall(String, (member(W, Lists), atom_chars(String, W)), Dict).

@@ -49,10 +49,11 @@ tt(completare, [
            completare(W, Sol, integ(_, _, L, _)),
            length(L, N)",
            ['N', 108]),
-       uck((integrama(2, W), solutie(2, Sol),
+       exp("integrama(2, W), solutie(2, Sol),
            completare(W, Sol, integ(_, _, L, _)),
-           member(((Y, X), C), L), C \= x,
-           (X > 7 ; Y > 10)))
+           findall((X, Y), (member(((Y, X), C), L),
+                            C \\= x, (X > 7 ; Y > 10)), Out)",
+           ['Out', []])
    ]).
 
 tt(completare_nsol, [
@@ -189,31 +190,43 @@ tt(candidates, [
    ]).
 
 tt(rezolvare, [
-%       exp("integrama(0, W), rezolvare(W, Rezultat), solutie(0, Sol)",
-%           [set('Rezultat', val('Sol'))]),
-       exp("integrama(1, W), rezolvare(W, Rezultat), solutie(1, Sol)",
+       wait, exp("integrama(1, W), rezolvare(W, Rezultat), solutie(1, Sol)",
            [set('Rezultat', val('Sol'))]),
-       exp("integrama(2, W), rezolvare(W, Rezultat), solutie(2, Sol)",
+       wait, exp("integrama(2, W), rezolvare(W, Rezultat), solutie(2, Sol)",
            [set('Rezultat', val('Sol'))]),
-       exp("integrama(3, W), rezolvare(W, Rezultat), solutie(3, Sol)",
+       wait, exp("integrama(3, W), rezolvare(W, Rezultat), solutie(3, Sol)",
            [set('Rezultat', val('Sol'))])
    ]).
 
 tt(stress_test, [
-       %exp("make_stress(0, W), rezolvare(W, Rezultat), solutie(0, Sol)",
-       %    [set('Rezultat', val('Sol'))]),
+       wait,
        exp("make_stress(1, W), rezolvare(W, Rezultat), solutie(1, Sol)",
            [set('Rezultat', val('Sol'))]),
+       wait,
        exp("make_stress(2, W), rezolvare(W, Rezultat), solutie(2, Sol)",
            [set('Rezultat', val('Sol'))]),
+       wait,
        exp("make_stress(3, W), rezolvare(W, Rezultat), solutie(3, Sol)",
            [set('Rezultat', val('Sol'))])
+   ]).
+
+tt(sols, [
+       wait, nsl("(integrama(0, W), rezolvare(W, Rezultat))", 'Rezultat', 2),
+       wait, nsl("(integrama(1, W), rezolvare(W, Rezultat))", 'Rezultat', 1),
+       wait, nsl("(integrama(2, W), rezolvare(W, Rezultat))", 'Rezultat', 1),
+       wait, nsl("(integrama(3, W), rezolvare(W, Rezultat))", 'Rezultat', 1)
    ]).
 
 
 make_stress(ID, integ(H, W, List, Dict)) :-
         integrama(ID, integ(H, W, List, DictOrig)),
         stress_test(Lst),
+        append(Lst, DictOrig, NewDict),
+        sort(NewDict, Dict).
+
+make_stress2(ID, integ(H, W, List, Dict)) :-
+        integrama(ID, integ(H, W, List, DictOrig)),
+        words2a(3, Lst),
         append(Lst, DictOrig, NewDict),
         sort(NewDict, Dict).
 
