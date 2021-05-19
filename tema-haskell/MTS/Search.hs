@@ -21,8 +21,6 @@ import qualified Data.Set as S
     * copiii, ce vor desemna stările învecinate;
 -}
 
--- s = Game, a = Direction
-
 data Node s a = Node {
     state     :: s,
     action    :: Maybe a,
@@ -183,8 +181,3 @@ extractPath goalNode = map (\n -> (fromJust (nodeAction n), nodeState n)) (nodes
         nodes l n
             | isNothing (nodeParent n) = tail l
             | otherwise = nodes (fromJust (nodeParent n) : l) (fromJust (nodeParent n))
-
--- extractPath :: Node s a -> [(a, s)]
--- extractPath goalNode = map (\n -> (fromJust (nodeAction n), nodeState n)) (nodes goalNode)
---     where
---         nodes goalNode = [n | ] ++ [goalNode]

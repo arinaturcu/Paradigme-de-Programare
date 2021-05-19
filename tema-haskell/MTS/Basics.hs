@@ -206,7 +206,7 @@ addGateway g@(src, dest) game
 addObstacle :: Position -> Game -> Game
 addObstacle p game
     | not (isPositionValid p game) = game
-    | otherwise = Game (hunter game) (targets game) (p : obstacles game) (gateways game) (terLines game) (terColumns game)
+    | otherwise = game { obstacles = p : obstacles game }
 
 {-
     *** DONE ***
@@ -340,7 +340,7 @@ bounce dir = bounceBehavior
     
 -}
 moveTargets :: Game -> Game
-moveTargets game = game {targets = newTargets}
+moveTargets game = game { targets = newTargets }
     where
         newTargets = map modif (targets game)
         modif targ = behavior targ (position targ) game
@@ -401,7 +401,6 @@ advanceGameState direction kill game = game { hunter = newHunter, targets = newT
             | kill = afterKillTargets afterMoveTargets
             | otherwise    = targets game
         
-
 {-
     ***  DONE ***
 
@@ -451,7 +450,6 @@ instance ProblemState Game Direction where
     -}
     h game = foldl1 (\m t -> if t < m then t else m) euclidians -- cauta minimul
         where
-            -- calculeaza euclidianul pentru fiecare target
             euclidians = map (\t -> hEuclidean (position t) (hunter game)) (targets game)
             
 
