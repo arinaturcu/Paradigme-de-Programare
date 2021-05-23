@@ -8,6 +8,7 @@
 
 
 tt(intrebari, [
+       % verifică lista de întrebări din integrama 0
        exp("integrama(0, W), intrebari(W, Q)",
            [set('Q', [((1, 1), 'Negativ', j, 0),
                       ((1, 1), 'Afirmativ', d, 1),
@@ -15,14 +16,21 @@ tt(intrebari, [
                       ((0, 3), 'Primii 3 din artă', j, 3),
                       ((2, 0), 'Din care plouă', d, 4),
                       ((3, 0), 'Când nu îmi amintesc', d, 5)])]),
+       % verifică numărul de întrebări din integrama 1 (9 întrebări)
        exp("integrama(1, W), intrebari(W, Q), length(Q, N)", ['N', 9]),
+       % verifică numărul de întrebări din integrama 2 (23 întrebări)
        exp("integrama(2, W), intrebari(W, Q), length(Q, N)", ['N', 23]),
+       % verifică numărul de întrebări din integrama 3 (10 întrebări)
        exp("integrama(3, W), intrebari(W, Q), length(Q, N)", ['N', 10]),
+       % verifică asocierea dintre întrebarea 'Cu Heliu' și identificatorul 13
        exp("integrama(2, W), id_intrebare(W, 'Cu Heliu', X)", ['X', 13]),
+       % verifică asocierea dintre întrebarea 'Primele vocale'
+       % și identificatorul 17
        exp("integrama(2, W), id_intrebare(W, X, 17)", ['X', 'Primele vocale'])
    ]).
 
 tt(intrebari_nsol, [
+       % verifică unicitatea soluției pentru predicatul intrebari
        nsl("(integrama(0, W), intrebari(W, Q))", 'W', 1),
        nsl("(integrama(1, W), intrebari(W, Q))", 'W', 1),
        nsl("(integrama(2, W), intrebari(W, Q))", 'W', 1),
@@ -30,12 +38,17 @@ tt(intrebari_nsol, [
    ]).
 
 tt(completare, [
+       % verifică că singura schimbare între integrama originală și
+       % cea rezultată în urma completării sunt literele adăugate de completare
+       % verifică că sunt 19 elemente (celule definite) în integrama completată
        exp("integrama(0, W), W = integ(A, B, C, D),
             completare(W, [('Afirmativ', 'DA')],
                                 integ(A1, B1, C1, D1)),
             testSetMinus(C1, C, CDif), length(C1, N)",
           ['A1', val('A'), 'B1', val('B'), 'D1', val('D'),
            'N', 19, set('CDif', [((1, 2), 'D'), ((1, 3), 'A')])]),
+       % verifică că în urma completării numărul de elemente este 24
+       % (de exemplu, nu sunt elemente duplicate pentru aceeași celulă)
        exp("integrama(0, W), W = integ(A, B, C, D),
             completare(W, [('Afirmativ', 'DA'),
                                     ('Al doilea număr', 'DOI'),
@@ -45,10 +58,14 @@ tt(completare, [
             length(C1, N)",
           ['A1', val('A'), 'B1', val('B'), 'D1', val('D'),
            'N', 24]),
+       % verifică că în urma completării numărul de elemente este 108
+       % (de exemplu, nu sunt elemente duplicate pentru aceeași celulă)
        exp("integrama(2, W), solutie(2, Sol),
            completare(W, Sol, integ(_, _, L, _)),
            length(L, N)",
            ['N', 108]),
+       % verifică că în urma completării nu au apărut celule cu coordonate
+       % dincolo de limitele integramei
        exp("integrama(2, W), solutie(2, Sol),
            completare(W, Sol, integ(_, _, L, _)),
            findall((X, Y), (member(((Y, X), C), L),
@@ -57,6 +74,7 @@ tt(completare, [
    ]).
 
 tt(completare_nsol, [
+       % verifică unicitatea soluției pentru predicatul completare
        nsl("(integrama(0, W), solutie(0, Sol),
            completare(W, Sol, W2))", 'W2', 1),
        nsl("(integrama(1, W), solutie(1, Sol),

@@ -1,6 +1,6 @@
 :- ensure_loaded('checker.pl').
 
-%test_mode(detailed).
+% test_mode(detailed).
 
 % Considerăm următoarele reprezentări:
 %
@@ -83,7 +83,7 @@ id_intrebare(integ(H, W, List, Vocab), Q_Text, Q_ID) :- intrebari(integ(H, W, Li
 % Puteți testa manual predicatul cu o interogare de forma:
 % integrama(0, W), solutie(0, Sol), completare(W, Sol, W2),
 %   print_integrama(W2).
-get_intrebare(integ(H, W, List, Vocab), Text, ((R, C), Text, Dir, ID)) :- intrebari(integ(H, W, List, Vocab), L), member(((R, C), Text, Dir, ID), L), !.
+getIntrebare(integ(H, W, List, Vocab), Text, ((R, C), Text, Dir, ID)) :- intrebari(integ(H, W, List, Vocab), L), member(((R, C), Text, Dir, ID), L).
 
 transformInIntegramaCel([], []).
 transformInIntegramaCel([(_, _, []) | Tail], L ) :- transformInIntegramaCel(Tail, L).
@@ -91,7 +91,7 @@ transformInIntegramaCel([((R, C), d, [FirstChar | Rest]) | T1], [((R, NewC), Fir
 transformInIntegramaCel([((R, C), j, [FirstChar | Rest]) | T1], [((NewR, C), FirstChar) | T2]) :- NewR is R + 1, transformInIntegramaCel([((NewR, C), j, Rest) | T1], T2), !.
 
 detailedSol(_, [], []).
-detailedSol(Integ, [(Text, Ans) | T1], [((R, C), Dir, AnsChars) | T2]) :- atom_chars(Ans, AnsChars), get_intrebare(Integ, Text, ((R, C), Text, Dir, _)), detailedSol(Integ, T1, T2), !.
+detailedSol(Integ, [(Text, Ans) | T1], [((R, C), Dir, AnsChars) | T2]) :- atom_chars(Ans, AnsChars), getIntrebare(Integ, Text, ((R, C), Text, Dir, _)), detailedSol(Integ, T1, T2), !.
 
 completare(_, _, _) :- false.
 completare(integ(H, W, List, Vocab), Sol, integ(H, W, ComplList, Vocab)) :- 
@@ -116,13 +116,25 @@ completare(integ(H, W, List, Vocab), Sol, integ(H, W, ComplList, Vocab)) :-
 % integrama(0, W), id_intrebare(W, Text, 3), lungime_spatiu(W, Text, X).
 % isValueAt(List, (R, C), Val) :- member(((R, C), Val), List), !.
 
-% findLength(List, (R, C), d, L).
-% findLength(List, (R, C), j, L).
+countLength(_, W, List, ((R, C), _, d, _), 0) :- NewC is C + 1, ( member(((R, NewC), x), List) ; NewC =:= W ; member(((R, NewC), [_|_]), List) ).
+countLength(H, _, List, ((R, C), _, j, _), 0) :- NewR is R + 1, ( member(((NewR, C), x), List) ; NewR =:= H ; member(((NewR, C), [_|_]), List) ).
+
+countLength(H, W, List, ((R, C), _, d, _), Lungime) :- 
+    NewC is C + 1, 
+    \+member(((R, NewC), x), List), C < W, \+member(((R, NewC), [_|_]), List),
+    countLength(H, W, List, ((R, NewC), _, d, _), NewLungime),
+    Lungime is NewLungime + 1.
+
+countLength(H, W, List, ((R, C), _, j, _), Lungime) :- 
+    NewR is R + 1,
+    \+member(((NewR, C), x), List), R < H, \+member(((NewR, C), [_|_]), List),
+    countLength(H, W, List, ((NewR, C), _, j, _), NewLungime),
+    Lungime is NewLungime + 1.
 
 lungime_spatiu(_, _, _) :- false.
-% lungime_spatiu(integ(H, W, List, Vocab), Text, Lungime) :- 
-%     get_intrebare(integ(H, W, List, Vocab), Text, ((R, C), Text, Dir, ID)), 
-%     findLength(List, (R, C), Dir, Lungime).
+lungime_spatiu(integ(H, W, List, Vocab), Text, Lungime) :- 
+    getIntrebare(integ(H, W, List, Vocab), Text, Intrebare), 
+    countLength(H, W, List, Intrebare, Lungime).
 
 % intersectie/5
 % intersectie(integ(+H, +W, +Lista, +Voc), +I1, -Poz1, +I2, -Poz2)
@@ -142,9 +154,30 @@ lungime_spatiu(_, _, _) :- false.
 %  █       █       █       █       █
 %
 %  Întrebările 'Primii 3 din artă' și 'Afirmativ' (3, respectiv 1) se
-%  intersectează la pozițiile 0, respectiv 2 (va fi litera A, de la
+%  intersectează la pozițiile 0, respectiv 1 (va fi litera A, de la
 %  ART, respectiv DA).
+
+seIntersecteaza(((R1, C1), d), ((R2, C2), j), L1, L2) :- 
+    R1 > R2, C1 < C2,
+    C1 + L1 >= C2,
+    R2 + L2 >= R1.
+
+seIntersecteaza(((R1, C1), j), ((R2, C2), d), L1, L2) :-
+    R2 > R1, C2 < C1,
+    C2 + L2 >= C1,
+    R1 + L1 >= R2.
+
 intersectie(_, _, _, _, _) :- false.
+intersectie(I, Intreb1, Poz1, Intreb2, Poz2) :- 
+    getIntrebare(I, Intreb1, ((R1, C1), _, Dir1, _)),
+    getIntrebare(I, Intreb2, ((R2, C2), _, Dir2, _)),
+    lungime_spatiu(I, Intreb1, L1), 
+    lungime_spatiu(I, Intreb2, L2),
+    seIntersecteaza(((R1, C1), Dir1), ((R2, C2), Dir2), L1, L2),
+    (Dir1 = d -> 
+        (Rint is R1, Cint is C2, Poz1 is Cint - C1 - 1, Poz2 is Rint - R2 - 1); 
+        (Rint is R2, Cint is C1, Poz1 is Rint - R1 - 1, Poz2 is Cint - C2 - 1)).
+
 
 % solutii_posibile/2
 % solutii_posibile(integ(+H, +W, +Lista, +Vocabular), -Solutii)

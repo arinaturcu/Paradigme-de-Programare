@@ -2,10 +2,10 @@
 vmpoints(Test, Points):-
         member(Test:Points,
                [
-               intrebari:1,
-               intrebari_nsol:0.2,
-               completare:2,
-               completare_nsol:0.4,
+               %intrebari:1,
+               %intrebari_nsol:0.2,
+               %completare:2,
+               %completare_nsol:0.4,
                lungime:1,
                lungime_nsol:0.2,
                intersectie:2,
